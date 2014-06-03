@@ -40,7 +40,17 @@ def get_alpha(p):
 
 
 def get_rho(w, max_width):
-    rho = max_width - w.bit_length() + 1
+    # count bit length
+    # bit_length will not  work until python version >= 2.7
+    import sys
+    if sys.version_info >= (2, 7):
+        w_bit_length = w.bit_length()
+    else:
+        w_bit_length = len(bin(w)) -2
+        if w_bit_length < 0:
+            w_bit_length -= 1
+
+    rho = max_width - w_bit_length + 1
 
     if rho <= 0:
         raise ValueError('w overflow')
