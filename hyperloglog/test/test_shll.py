@@ -54,8 +54,8 @@ class SlidingHyperLogLogTestCase(TestCase):
                 s += a.card(int(time.time()))
 
             z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
-            self.assertLess(-1.96, z)
-            self.assertGreater(1.96, z)
+            self.assertLess(-3, z)
+            self.assertGreater(3, z)
 
     def test_calc_cardinality_sliding1(self):
         a = SlidingHyperLogLog(0.05, 100)
@@ -88,8 +88,8 @@ class SlidingHyperLogLogTestCase(TestCase):
 
             card_stored = min(card, 200000)
             z = (float(s) / n - card_stored) / (rel_err * card_stored / math.sqrt(n))
-            self.assertLess(-1.96, z)
-            self.assertGreater(1.96, z)
+            self.assertLess(-3, z)
+            self.assertGreater(3, z)
 
     def test_calc_cardinality_sliding3(self):
         clist = [30, 60, 200, 1000, 10000, 60000]
@@ -103,12 +103,12 @@ class SlidingHyperLogLogTestCase(TestCase):
                 a.add(i, os.urandom(20))
 
             ts = time.time()
-            l1 = [a.card(1.5 * card, w / 10.0) for w in range(1, card + 1, card / 10)]
+            l1 = [a.card(1.5 * card, w / 10.0) for w in range(1, card + 1, card // 10)]
             t1 = (time.time() - ts)
             ts = time.time()
-            l2 = a.card_wlist(1.5 * card, [ w / 10.0 for w in range(1, card + 1, card / 10)])
+            l2 = a.card_wlist(1.5 * card, [ w / 10.0 for w in range(1, card + 1, card // 10)])
             t2 = (time.time() - ts)
-            #print card, t1, t2
+            # print card, t1, t2
             self.assertEqual(l1, l2)
 
     def test_update(self):

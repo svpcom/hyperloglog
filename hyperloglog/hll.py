@@ -107,7 +107,7 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        x = long(sha1(bytes(value.encode() if isinstance(value, unicode) else value)).hexdigest()[:16], 16)
+        x = long(sha1(bytes(value.encode('utf8') if isinstance(value, unicode) else value)).hexdigest()[:16], 16)
         j = x & (self.m - 1)
         w = x >> self.p
 

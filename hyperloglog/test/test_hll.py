@@ -84,8 +84,8 @@ class HyperLogLogTestCase(TestCase):
                 s += a.card()
 
             z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
-            self.assertLess(-1.96, z)
-            self.assertGreater(1.96, z)
+            self.assertLess(-3, z)
+            self.assertGreater(3, z)
 
 
     def test_update(self):
