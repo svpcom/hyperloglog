@@ -3,6 +3,7 @@ This module implements probabilistic data structure which is able to calculate t
 """
 
 import math
+import struct
 from hashlib import sha1
 from .const import rawEstimateData, biasData, tresholdData
 from .compat import *
@@ -107,7 +108,7 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        x = long(sha1(bytes(value.encode('utf8') if isinstance(value, unicode) else value)).hexdigest()[:16], 16)
+        x = struct.unpack('!Q', sha1(value.encode('utf8') if isinstance(value, unicode) else value).digest()[:8])[0]
         j = x & (self.m - 1)
         w = x >> self.p
 
