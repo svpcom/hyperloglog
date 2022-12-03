@@ -70,7 +70,12 @@ class SlidingHyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # <t_i, rho(w)>
 
-        x = struct.unpack('!Q', sha1(value.encode() if isinstance(value, unicode) else value).digest()[:8])[0]
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        elif not isinstance(value, bytes):
+            value = bytes(value)
+
+        x = struct.unpack('!Q', sha1(value).digest()[:8])[0]
         j = x & (self.m - 1)
         w = x >> self.p
         R = get_rho(w, 64 - self.p)
