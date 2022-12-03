@@ -1,7 +1,7 @@
 """
 This module implements probabilistic data structure which is able to calculate the cardinality of large multisets in a single pass using little auxiliary memory
 """
-
+import cPickle as pickle
 import math
 import struct
 from hashlib import sha1
@@ -160,3 +160,12 @@ class HyperLogLog(object):
         else:
             return self._Ep()
 
+    def save(self):
+        return pickle.dumps(self)
+
+    def load(self, data):
+        newobj = pickle.loads(data)
+        self.alpha = newobj.alpha
+        self.p = newobj.p
+        self.m =  newobj.m
+        self.M = newobj.M

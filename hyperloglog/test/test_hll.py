@@ -123,3 +123,17 @@ class HyperLogLogTestCase(TestCase):
         self.assertEqual(a.alpha, b.alpha)
         self.assertEqual(a.p, b.p)
         self.assertEqual(a.m, b.m)
+
+    def test_save(self):
+        a = HyperLogLog(0.05)
+        for x in range(100):
+            a.add(str(x))
+        saved=a.save()
+        b = HyperLogLog(0.05)
+        b.load(saved)
+        self.assertEqual(a.M, b.M)
+        self.assertEqual(a.alpha, b.alpha)
+        self.assertEqual(a.p, b.p)
+        self.assertEqual(a.m, b.m)
+
+
