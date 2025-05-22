@@ -43,5 +43,5 @@ References:
 2. http://hal.archives-ouvertes.fr/docs/00/46/53/13/PDF/sliding_HyperLogLog.pdf
 3. http://research.google.com/pubs/pub40671.html
 
-Wiki: :ref:`Ask DeepWiki <https://deepwiki.com/badge.svg)](https://deepwiki.com/svpcom/hyperloglog>`
-=======================
+.. image:: https://deepwiki.com/badge.svg
+   :target: https://deepwiki.com/svpcom/hyperloglog
