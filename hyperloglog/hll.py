@@ -179,7 +179,7 @@ class HyperLogLog(object):
         Returns the estimate of the cardinality
         """
 
-        #count number or registers equal to 0
+        #count number of registers equal to 0
         V = np.count_nonzero(self.M == 0)
 
         if V > 0:

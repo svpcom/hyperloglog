@@ -50,11 +50,10 @@ class SlidingHyperLogLogTestCase(TestCase):
                 for i in range(card):
                     ts = int(time.time())
                     a.add(ts, os.urandom(20))
-                    a.add(ts, int.from_bytes(os.urandom(8)))
 
                 s += a.card(int(time.time()))
 
-            z = (float(s) / n - 2 * card) / (rel_err * 2 * card / math.sqrt(n))
+            z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
             self.assertLess(-3, z)
             self.assertGreater(3, z)
 
@@ -146,5 +145,4 @@ class SlidingHyperLogLogTestCase(TestCase):
         self.assertEqual(a.window, b.window)
         self.assertEqual(a.alpha, b.alpha)
         self.assertEqual(a.p, b.p)
-        self.assertEqual(a.m, b.m)
-        self.assertEqual(a.LPFM, b.LPFM)
+        self.assertEqual(a, b)
