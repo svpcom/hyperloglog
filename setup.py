@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-version = '0.0.14'
+version = '0.1.1'
 
 setup(
     name='hyperloglog',
@@ -14,6 +14,8 @@ setup(
     packages=['hyperloglog', 'hyperloglog.test'],
     description='HyperLogLog cardinality counter',
     url='https://github.com/svpcom/hyperloglog',
+    install_requires=['msgpack'],
+    python_requires='>=3.7',
     license='LGPL 2.1 or later',
     long_description=\
 """

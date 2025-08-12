@@ -5,21 +5,9 @@ This module implements probabilistic data structure which is able to calculate t
 import math
 import struct
 from hashlib import sha1
+from msgpack import packb
+
 from .const import rawEstimateData, biasData, tresholdData
-from .compat import *
-
-
-def bit_length(w):
-    return w.bit_length()
-
-
-def bit_length_emu(w):
-    return len(bin(w)) - 2 if w > 0 else 0
-
-
-# Workaround for python < 2.7
-if not hasattr(int, 'bit_length'):
-    bit_length = bit_length_emu
 
 
 def get_treshold(p):
@@ -55,7 +43,7 @@ def get_alpha(p):
 
 
 def get_rho(w, max_width):
-    rho = max_width - bit_length(w) + 1
+    rho = max_width - w.bit_length() + 1
 
     if rho <= 0:
         raise ValueError('w overflow')
@@ -108,12 +96,7 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        elif not isinstance(value, bytes):
-            value = bytes(value)
-
-        x = struct.unpack('!Q', sha1(value).digest()[:8])[0]
+        x = struct.unpack('!Q', sha1(packb(value)).digest()[:8])[0]
         j = x & (self.m - 1)
         w = x >> self.p
 

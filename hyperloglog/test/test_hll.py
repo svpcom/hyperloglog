@@ -3,7 +3,6 @@
 from unittest import TestCase
 from hyperloglog.hll import HyperLogLog, get_alpha, get_rho
 from hyperloglog.const import biasData, tresholdData, rawEstimateData
-from hyperloglog.compat import *
 import math
 import os
 import pickle
@@ -33,24 +32,6 @@ class HyperLogLogTestCase(TestCase):
         self.assertEqual(get_rho(1 << 31, 32), 1)
         self.assertRaises(ValueError, get_rho, 1 << 32, 32)
 
-    def test_rho_emu(self):
-        from hyperloglog import hll
-        old = hll.bit_length
-        hll.bit_length = hll.bit_length_emu
-        try:
-            self.assertEqual(get_rho(0, 32), 33)
-            self.assertEqual(get_rho(1, 32), 32)
-            self.assertEqual(get_rho(2, 32), 31)
-            self.assertEqual(get_rho(3, 32), 31)
-            self.assertEqual(get_rho(4, 32), 30)
-            self.assertEqual(get_rho(5, 32), 30)
-            self.assertEqual(get_rho(6, 32), 30)
-            self.assertEqual(get_rho(7, 32), 30)
-            self.assertEqual(get_rho(1 << 31, 32), 1)
-            self.assertRaises(ValueError, get_rho, 1 << 32, 32)
-        finally:
-            hll.bit_length = old
-
     def test_init(self):
         s = HyperLogLog(0.05)
         self.assertEqual(s.p, 9)
@@ -66,7 +47,7 @@ class HyperLogLogTestCase(TestCase):
 
         M = [(i, v) for i, v in enumerate(s.M) if v > 0]
 
-        self.assertEqual(M, [(1, 1), (41, 1), (44, 1), (76, 3), (103, 4), (182, 1), (442, 2), (464, 5), (497, 1), (506, 1)])
+        self.assertEqual(M, [(40, 1), (121, 1), (197, 4), (200, 4), (247, 2), (260, 3), (377, 2), (444, 1), (500, 3)])
 
     def test_calc_cardinality(self):
         clist = [1, 5, 10, 30, 60, 200, 1000, 10000, 60000]
@@ -75,15 +56,18 @@ class HyperLogLogTestCase(TestCase):
 
         for card in clist:
             s = 0.0
-            for c in xrange(n):
+            for c in range(n):
                 a = HyperLogLog(rel_err)
 
-                for i in xrange(card):
+                for i in range(card):
+                    # add bytes
                     a.add(os.urandom(20))
+                    # add tuple
+                    a.add(('qq', os.urandom(8)))
 
                 s += a.card()
 
-            z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
+            z = (float(s) / n - 2 * card) / (rel_err * 2 * card / math.sqrt(n))
             self.assertLess(-3, z)
             self.assertGreater(3, z)
 
@@ -93,11 +77,11 @@ class HyperLogLogTestCase(TestCase):
         b = HyperLogLog(0.05)
         c = HyperLogLog(0.05)
 
-        for i in xrange(2):
+        for i in range(2):
             a.add(str(i))
             c.add(str(i))
 
-        for i in xrange(2, 4):
+        for i in range(2, 4):
             b.add(str(i))
             c.add(str(i))
 

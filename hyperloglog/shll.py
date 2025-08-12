@@ -6,8 +6,8 @@ import math
 import heapq
 import struct
 from hashlib import sha1
+from msgpack import packb
 from .hll import get_treshold, estimate_bias, get_alpha, get_rho
-from .compat import *
 
 
 class SlidingHyperLogLog(object):
@@ -70,12 +70,7 @@ class SlidingHyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # <t_i, rho(w)>
 
-        if isinstance(value, unicode):
-            value = value.encode('utf-8')
-        elif not isinstance(value, bytes):
-            value = bytes(value)
-
-        x = struct.unpack('!Q', sha1(value).digest()[:8])[0]
+        x = struct.unpack('!Q', sha1(packb(value)).digest()[:8])[0]
         j = x & (self.m - 1)
         w = x >> self.p
         R = get_rho(w, 64 - self.p)
@@ -108,7 +103,7 @@ class SlidingHyperLogLog(object):
             if self.m != item.m:
                 raise ValueError('Counters precisions should be equal')
 
-        for j in xrange(len(self.LPFM)):
+        for j in range(len(self.LPFM)):
             Rmax = None
             tmp = []
             tmax = None
@@ -197,7 +192,7 @@ class SlidingHyperLogLog(object):
                     R_max = R
                     i -= 1
 
-            for i in xrange(0, _p + 1):
+            for i in range(0, _p + 1):
                 M_list[tsl[i][1]].append(R_max)
 
         res = []

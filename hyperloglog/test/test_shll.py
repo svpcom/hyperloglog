@@ -5,7 +5,6 @@ import math
 import time
 from unittest import TestCase
 from hyperloglog.shll import SlidingHyperLogLog
-from hyperloglog.compat import *
 import pickle
 
 
@@ -25,7 +24,7 @@ class SlidingHyperLogLogTestCase(TestCase):
             s.add(i, str(i))
 
         M = [(i, max(R for ts, R in lpfm)) for i, lpfm in enumerate(s.LPFM) if lpfm]
-        self.assertEqual(M, [(1, 1), (41, 1), (44, 1), (76, 3), (103, 4), (182, 1), (442, 2), (464, 5), (497, 1), (506, 1)])
+        self.assertEqual(M, [(40, 1), (121, 1), (197, 4), (200, 4), (247, 2), (260, 3), (377, 2), (444, 1), (500, 3)])
 
     def test_from_list(self):
         s1 = SlidingHyperLogLog(0.05, 100)
@@ -45,15 +44,17 @@ class SlidingHyperLogLogTestCase(TestCase):
 
         for card in clist:
             s = 0.0
-            for c in xrange(n):
+            for c in range(n):
                 a = SlidingHyperLogLog(rel_err, 100)
 
-                for i in xrange(card):
-                    a.add(int(time.time()), os.urandom(20))
+                for i in range(card):
+                    ts = int(time.time())
+                    a.add(ts, os.urandom(20))
+                    a.add(ts, int.from_bytes(os.urandom(8)))
 
                 s += a.card(int(time.time()))
 
-            z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
+            z = (float(s) / n - 2 * card) / (rel_err * 2 * card / math.sqrt(n))
             self.assertLess(-3, z)
             self.assertGreater(3, z)
 
@@ -78,10 +79,10 @@ class SlidingHyperLogLogTestCase(TestCase):
 
         for card in clist:
             s = 0.0
-            for c in xrange(n):
+            for c in range(n):
                 a = SlidingHyperLogLog(rel_err, 100)
 
-                for i in xrange(card):
+                for i in range(card):
                     a.add(i / 2000.0, os.urandom(20))
 
                 s += a.card(card / 2000.0)
@@ -99,7 +100,7 @@ class SlidingHyperLogLogTestCase(TestCase):
         for card in clist:
             a = SlidingHyperLogLog(rel_err, card)
 
-            for i in xrange(card):
+            for i in range(card):
                 a.add(i, os.urandom(20))
 
             ts = time.time()
@@ -116,11 +117,11 @@ class SlidingHyperLogLogTestCase(TestCase):
         b = SlidingHyperLogLog(0.05, 100)
         c = SlidingHyperLogLog(0.05, 100)
 
-        for i in xrange(10000):
+        for i in range(10000):
             a.add(i, str('k1-%d' % i))
             c.add(i, str('k1-%d' % i))
 
-        for i in xrange(10000):
+        for i in range(10000):
             b.add(i, str('k2-%d' % i))
             c.add(i, str('k2-%d' % i))
 
@@ -138,9 +139,9 @@ class SlidingHyperLogLogTestCase(TestCase):
 
     def test_pickle(self):
         a = SlidingHyperLogLog(0.05, 100)
-        for i in xrange(10000):
+        for i in range(10000):
             a.add(i, str('k1-%d' % i))
-        
+
         b = pickle.loads(pickle.dumps(a))
         self.assertEqual(a.window, b.window)
         self.assertEqual(a.alpha, b.alpha)
