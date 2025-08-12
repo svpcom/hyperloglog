@@ -3,11 +3,17 @@ This module implements probabilistic data structure which is able to calculate t
 """
 
 import math
-import struct
+import numpy as np
 from hashlib import sha1
 from msgpack import packb
 
-from .const import rawEstimateData, biasData, tresholdData
+from .const import rawEstimateData as _rawEstimateData, \
+                   biasData as _biasData, \
+                   tresholdData as _tresholdData
+
+rawEstimateData = tuple(np.array(row) for row in _rawEstimateData)
+biasData = tuple(np.array(row) for row in _biasData)
+tresholdData = tuple(np.array(row) for row in _tresholdData)
 
 
 def get_treshold(p):
@@ -17,13 +23,11 @@ def get_treshold(p):
 def estimate_bias(E, p):
     bias_vector = biasData[p - 4]
     nearest_neighbors = get_nearest_neighbors(E, rawEstimateData[p - 4])
-    return sum([float(bias_vector[i]) for i in nearest_neighbors]) / len(nearest_neighbors)
+    return np.sum(bias_vector[nearest_neighbors]) / len(nearest_neighbors)
 
 
 def get_nearest_neighbors(E, estimate_vector):
-    distance_map = [((E - float(val)) ** 2, idx) for idx, val in enumerate(estimate_vector)]
-    distance_map.sort()
-    return [idx for dist, idx in distance_map[:6]]
+    return np.argsort((E - estimate_vector) ** 2)[:6]
 
 
 def get_alpha(p):
@@ -51,6 +55,22 @@ def get_rho(w, max_width):
     return rho
 
 
+def bit_length_vec(arr):
+    # 64-bit safe
+    _, high_exp = np.frexp(arr >> 32)
+    _, low_exp = np.frexp(arr & 0xFFFFFFFF)
+    return np.where(high_exp, high_exp + 32, low_exp)
+
+
+def get_rho_vec(w, max_width):
+    rho = max_width - bit_length_vec(w) + 1
+
+    if np.count_nonzero(rho <= 0):
+        raise ValueError('w overflow')
+
+    return rho
+
+
 class HyperLogLog(object):
     """
     HyperLogLog cardinality counter
@@ -72,12 +92,12 @@ class HyperLogLog(object):
         # m = 2 ** p
         # M(1)... M(m) = 0
 
-        p = int(math.ceil(math.log((1.04 / error_rate) ** 2, 2)))
+        p = math.ceil(math.log((1.04 / error_rate) ** 2, 2))
 
         self.alpha = get_alpha(p)
         self.p = p
         self.m = 1 << p
-        self.M = [ 0 for i in range(self.m) ]
+        self.M = np.zeros(self.m, int)
 
     def __getstate__(self):
         return dict([x, getattr(self, x)] for x in self.__slots__)
@@ -96,11 +116,35 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        x = struct.unpack('!Q', sha1(packb(value)).digest()[:8])[0]
+        x = int.from_bytes(sha1(packb(value)).digest()[:8])
         j = x & (self.m - 1)
         w = x >> self.p
 
         self.M[j] = max(self.M[j], get_rho(w, 64 - self.p))
+
+    def add_bulk(self, values):
+        """
+        Adds the item to the HyperLogLog
+        """
+        # h: D -> {0,1} ** 64
+        # x = h(v)
+        # j = <x_0x_1..x_{p-1}>
+        # w = <x_{p}x_{p+1}..>
+        # M[j] = max(M[j], rho(w))
+
+        assert not isinstance(values, (bytes, str)) and hasattr(values, '__iter__')
+
+        x = np.fromiter((int.from_bytes(sha1(packb(value)).digest()[:8]) for value in values), np.uint64)
+        j = x & (self.m - 1)
+        w = x >> self.p
+        rho = get_rho_vec(w, 64 - self.p)
+
+        unique_j, inverse_indices = np.unique(j, return_inverse=True)
+        sort_inv = np.argsort(inverse_indices)
+        group_start_indices = np.searchsorted(inverse_indices[sort_inv], np.arange(len(unique_j)))
+        grouped_rho = np.maximum.reduceat(rho[sort_inv], group_start_indices)
+
+        self.M[unique_j] = np.maximum(self.M[unique_j], grouped_rho)
 
     def update(self, *others):
         """
@@ -111,13 +155,14 @@ class HyperLogLog(object):
             if self.m != item.m:
                 raise ValueError('Counters precisions should be equal')
 
-        self.M = [max(*items) for items in zip(*([ item.M for item in others ] + [ self.M ]))]
+        for o in others:
+            self.M = np.maximum(self.M, o.M)
 
     def __eq__(self, other):
         if self.m != other.m:
             raise ValueError('Counters precisions should be equal')
 
-        return self.M == other.M
+        return np.array_equal(self.M, other.M)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -126,7 +171,7 @@ class HyperLogLog(object):
         return round(self.card())
 
     def _Ep(self):
-        E = self.alpha * float(self.m ** 2) / sum(math.pow(2.0, -x) for x in self.M)
+        E = self.alpha * (self.m ** 2) / np.power(2.0, -self.M, dtype=float).sum()
         return (E - estimate_bias(E, self.p)) if E <= 5 * self.m else E
 
     def card(self):
@@ -135,10 +180,10 @@ class HyperLogLog(object):
         """
 
         #count number or registers equal to 0
-        V = self.M.count(0)
+        V = np.count_nonzero(self.M == 0)
 
         if V > 0:
-            H = self.m * math.log(self.m / float(V))
+            H = self.m * math.log(self.m / V)
             return H if H <= get_treshold(self.p) else self._Ep()
         else:
             return self._Ep()

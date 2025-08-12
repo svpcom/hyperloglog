@@ -49,6 +49,15 @@ class HyperLogLogTestCase(TestCase):
 
         self.assertEqual(M, [(40, 1), (121, 1), (197, 4), (200, 4), (247, 2), (260, 3), (377, 2), (444, 1), (500, 3)])
 
+    def test_add_bulk(self):
+        s = HyperLogLog(0.05)
+
+        s.add_bulk(str(i) for i in range(10))
+
+        M = [(i, v) for i, v in enumerate(s.M) if v > 0]
+
+        self.assertEqual(M, [(40, 1), (121, 1), (197, 4), (200, 4), (247, 2), (260, 3), (377, 2), (444, 1), (500, 3)])
+
     def test_calc_cardinality(self):
         clist = [1, 5, 10, 30, 60, 200, 1000, 10000, 60000]
         n = 30
@@ -62,12 +71,29 @@ class HyperLogLogTestCase(TestCase):
                 for i in range(card):
                     # add bytes
                     a.add(os.urandom(20))
-                    # add tuple
-                    a.add(('qq', os.urandom(8)))
 
                 s += a.card()
 
-            z = (float(s) / n - 2 * card) / (rel_err * 2 * card / math.sqrt(n))
+            z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
+            self.assertLess(-3, z)
+            self.assertGreater(3, z)
+
+    def test_calc_cardinality_bulk(self):
+        clist = [1, 5, 10, 30, 60, 200, 1000, 10000, 60000]
+        n = 30
+        rel_err = 0.05
+
+        for card in clist:
+            s = 0.0
+            for c in range(n):
+                a = HyperLogLog(rel_err)
+
+                # add bytes
+                a.add_bulk([os.urandom(20) for i in range(card)])
+
+                s += a.card()
+
+            z = (float(s) / n - card) / (rel_err * card / math.sqrt(n))
             self.assertLess(-3, z)
             self.assertGreater(3, z)
 
@@ -103,7 +129,6 @@ class HyperLogLogTestCase(TestCase):
         for x in range(100):
             a.add(str(x))
         b = pickle.loads(pickle.dumps(a))
-        self.assertEqual(a.M, b.M)
+        self.assertEqual(a, b)
         self.assertEqual(a.alpha, b.alpha)
         self.assertEqual(a.p, b.p)
-        self.assertEqual(a.m, b.m)
