@@ -116,7 +116,7 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        x = int.from_bytes(sha1(packb(value)).digest()[:8])
+        x = int.from_bytes(sha1(packb(value)).digest()[:8], byteorder='big')
         j = x & (self.m - 1)
         w = x >> self.p
 
@@ -134,7 +134,7 @@ class HyperLogLog(object):
 
         assert not isinstance(values, (bytes, str)) and hasattr(values, '__iter__')
 
-        x = np.fromiter((int.from_bytes(sha1(packb(value)).digest()[:8]) for value in values), np.uint64)
+        x = np.fromiter((int.from_bytes(sha1(packb(value)).digest()[:8], byteorder='big') for value in values), np.uint64)
         j = x & (self.m - 1)
         w = x >> self.p
         rho = get_rho_vec(w, 64 - self.p)

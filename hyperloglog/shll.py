@@ -71,7 +71,7 @@ class SlidingHyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # <t_i, rho(w)>
 
-        x = int.from_bytes(sha1(packb(value)).digest()[:8])
+        x = int.from_bytes(sha1(packb(value)).digest()[:8], byteorder='big')
         j = x & (self.m - 1)
         w = x >> self.p
         R = get_rho(w, 64 - self.p)
