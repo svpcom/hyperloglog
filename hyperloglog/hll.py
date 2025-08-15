@@ -97,7 +97,7 @@ class HyperLogLog(object):
         self.alpha = get_alpha(p)
         self.p = p
         self.m = 1 << p
-        self.M = np.zeros(self.m, int)
+        self.M = np.zeros(self.m, np.int8)
 
     def __getstate__(self):
         return dict([x, getattr(self, x)] for x in self.__slots__)
