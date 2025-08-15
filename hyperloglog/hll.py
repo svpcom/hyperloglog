@@ -150,13 +150,14 @@ class HyperLogLog(object):
         """
         Merge other counters
         """
+        ml = [self.M]
 
         for item in others:
             if self.m != item.m:
                 raise ValueError('Counters precisions should be equal')
+            ml.append(item.M)
 
-        for o in others:
-            self.M = np.maximum(self.M, o.M)
+        self.M = np.maximum.reduce(ml)
 
     def __eq__(self, other):
         if self.m != other.m:

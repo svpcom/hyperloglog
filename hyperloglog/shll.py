@@ -33,6 +33,7 @@ class SlidingHyperLogLog(object):
 
             if (1 << p) != m:
                 raise ValueError('List length is not power of 2')
+
             self.LPFM = lpfm
 
         else:
@@ -44,7 +45,7 @@ class SlidingHyperLogLog(object):
 
             p = math.ceil(math.log((1.04 / error_rate) ** 2, 2))
             m = 1 << p
-            self.LPFM = [None for i in range(m)]
+            self.LPFM = [tuple() for i in range(m)]
 
         self.alpha = get_alpha(p)
         self.p = p
@@ -79,8 +80,7 @@ class SlidingHyperLogLog(object):
         Rmax = None
         tmp = []
         tmax = None
-        tmp2 = heapq.merge(self.LPFM[j] if self.LPFM[j] is not None else [],
-                           [(timestamp, R)], reverse=True)
+        tmp2 = heapq.merge(self.LPFM[j], ((timestamp, R),), reverse=True)
 
         for t, R in tmp2:
             if tmax is None:
@@ -93,7 +93,7 @@ class SlidingHyperLogLog(object):
                 tmp.append((t, R))
                 Rmax = R
 
-        self.LPFM[j] = tuple(tmp) if tmp else None
+        self.LPFM[j] = tuple(tmp)
 
     def update(self, *others):
         """
@@ -104,15 +104,12 @@ class SlidingHyperLogLog(object):
             if self.m != item.m:
                 raise ValueError('Counters precisions should be equal')
 
-        for j in range(len(self.LPFM)):
+        for j, lpfms_j in enumerate(zip(self.LPFM, *list(item.LPFM for item in others))):
             Rmax = None
             tmp = []
             tmax = None
-            tmp2 = heapq.merge(*([item.LPFM[j] if item.LPFM[j] is not None else [] for item in others] + \
-                                 [self.LPFM[j] if self.LPFM[j] is not None else []]),
-                               reverse=True)
 
-            for t, R in tmp2:
+            for t, R in heapq.merge(*lpfms_j, reverse=True):
                 if tmax is None:
                     tmax = t
 
@@ -123,7 +120,7 @@ class SlidingHyperLogLog(object):
                     tmp.append((t, R))
                     Rmax = R
 
-            self.LPFM[j] = tuple(tmp) if tmp else None
+            self.LPFM[j] = tuple(tmp)
 
     def __eq__(self, other):
         if self.m != other.m:
@@ -177,16 +174,15 @@ class SlidingHyperLogLog(object):
         for lpfm in self.LPFM:
             R_max = 0
             _p = len(tsl) - 1
-            if lpfm:
-                for i in range(len(lpfm)):
-                    ts, R = lpfm[i]
-                    while _p >= 0:
-                        _ts, _idx = tsl[_p]
-                        if ts >= _ts: break
-                        M_list[_idx].append(R_max)
-                        _p -= 1
-                    if _p < 0: break
-                    R_max = R
+
+            for ts, R in lpfm:
+                while _p >= 0:
+                    _ts, _idx = tsl[_p]
+                    if ts >= _ts: break
+                    M_list[_idx].append(R_max)
+                    _p -= 1
+                if _p < 0: break
+                R_max = R
 
             for i in range(0, _p + 1):
                 M_list[tsl[i][1]].append(R_max)
