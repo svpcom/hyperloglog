@@ -66,11 +66,18 @@ if hasattr(np,'bitwise_count'):
         bits |= bits >> 16
         bits |= bits >> 32
         return np.bitwise_count(bits)
+
+    # NumPy 2.x doesn't have performance drawback for small integers
+    HLL_COUNTER_TYPE = np.int8
+
 else:
     def bit_length_vec(arr):
         _, high_exp = np.frexp(arr >> 32)
         _, low_exp = np.frexp(arr & 0xFFFFFFFF)
         return np.where(high_exp, high_exp + 32, low_exp)
+
+    # int8/16/32 are smaller but much slower than int64 for NumPy 1.x
+    HLL_COUNTER_TYPE = np.int64
 
 
 def get_rho_vec(w, max_width):
@@ -108,7 +115,7 @@ class HyperLogLog(object):
         self.alpha = get_alpha(p)
         self.p = p
         self.m = 1 << p
-        self.M = np.zeros(self.m, np.int8)
+        self.M = np.zeros(self.m, HLL_COUNTER_TYPE)
 
     def __getstate__(self):
         return dict([x, getattr(self, x)] for x in self.__slots__)
@@ -132,7 +139,8 @@ class HyperLogLog(object):
         w = x >> self.p
         rho = get_rho(w, 64 - self.p)
 
-        self.M[j] = max(self.M[j], rho)
+        if rho > self.M[j]:
+            self.M[j] = rho
 
     def add_bulk(self, values):
         """
