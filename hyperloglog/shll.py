@@ -80,9 +80,8 @@ class SlidingHyperLogLog(object):
         Rmax = None
         tmp = []
         tmax = None
-        tmp2 = heapq.merge(self.LPFM[j], ((timestamp, R),), reverse=True)
 
-        for t, R in tmp2:
+        for t, R in heapq.merge(self.LPFM[j], ((timestamp, R),), reverse=True):
             if tmax is None:
                 tmax = t - self.window
 

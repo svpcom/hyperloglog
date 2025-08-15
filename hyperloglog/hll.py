@@ -55,11 +55,22 @@ def get_rho(w, max_width):
     return rho
 
 
-def bit_length_vec(arr):
-    # 64-bit safe
-    _, high_exp = np.frexp(arr >> 32)
-    _, low_exp = np.frexp(arr & 0xFFFFFFFF)
-    return np.where(high_exp, high_exp + 32, low_exp)
+# Check for NumPy 2.x
+if hasattr(np,'bitwise_count'):
+    def bit_length_vec(arr):
+        bits = arr >> 1
+        bits |= arr
+        bits |= bits >> 2
+        bits |= bits >> 4
+        bits |= bits >> 8
+        bits |= bits >> 16
+        bits |= bits >> 32
+        return np.bitwise_count(bits)
+else:
+    def bit_length_vec(arr):
+        _, high_exp = np.frexp(arr >> 32)
+        _, low_exp = np.frexp(arr & 0xFFFFFFFF)
+        return np.where(high_exp, high_exp + 32, low_exp)
 
 
 def get_rho_vec(w, max_width):
@@ -119,8 +130,9 @@ class HyperLogLog(object):
         x = int.from_bytes(sha1(packb(value)).digest()[:8], byteorder='big')
         j = x & (self.m - 1)
         w = x >> self.p
+        rho = get_rho(w, 64 - self.p)
 
-        self.M[j] = max(self.M[j], get_rho(w, 64 - self.p))
+        self.M[j] = max(self.M[j], rho)
 
     def add_bulk(self, values):
         """

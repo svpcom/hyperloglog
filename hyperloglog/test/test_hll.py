@@ -89,7 +89,7 @@ class HyperLogLogTestCase(TestCase):
                 a = HyperLogLog(rel_err)
 
                 # add bytes
-                a.add_bulk([os.urandom(20) for i in range(card)])
+                a.add_bulk((os.urandom(20) for i in range(card)))
 
                 s += a.card()
 
