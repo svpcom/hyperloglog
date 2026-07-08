@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup
 
-version = '0.1.5'
+version = '0.1.6'
 
 setup(
     name='hyperloglog',

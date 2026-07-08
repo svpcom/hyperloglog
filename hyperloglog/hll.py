@@ -81,12 +81,28 @@ else:
 
 
 def get_rho_vec(w, max_width):
-    rho = max_width - bit_length_vec(w) + 1
+    # compare before subtracting: bit_length_vec may return an unsigned
+    # dtype (NumPy 2.x), where a negative rho would silently wrap around
+    bits = bit_length_vec(w)
 
-    if np.count_nonzero(rho <= 0):
+    if np.count_nonzero(bits > max_width):
         raise ValueError('w overflow')
 
-    return rho
+    return max_width - bits + 1
+
+
+def get_estimate(M, m, p, alpha):
+    # small-range linear counting below the empirical threshold, otherwise
+    # the HLL raw estimate (bias-corrected while E <= 5m)
+    V = np.count_nonzero(M == 0)
+
+    if V > 0:
+        H = m * math.log(m / V)
+        if H <= get_treshold(p):
+            return H
+
+    E = alpha * (m ** 2) / np.power(2.0, -M, dtype=float).sum()
+    return (E - estimate_bias(E, p)) if E <= 5 * m else E
 
 
 class HyperLogLog(object):
@@ -124,6 +140,10 @@ class HyperLogLog(object):
         for key in d:
             setattr(self, key, d[key])
 
+        # normalize M from pickles created by pre-NumPy versions (plain list)
+        # or under the other NumPy major version (different counter dtype)
+        self.M = np.asarray(self.M, HLL_COUNTER_TYPE)
+
     def add(self, value):
         """
         Adds the item to the HyperLogLog
@@ -152,7 +172,8 @@ class HyperLogLog(object):
         # w = <x_{p}x_{p+1}..>
         # M[j] = max(M[j], rho(w))
 
-        assert not isinstance(values, (bytes, str)) and hasattr(values, '__iter__')
+        if isinstance(values, (bytes, str)) or not hasattr(values, '__iter__'):
+            raise TypeError('values must be a non-string iterable')
 
         x = np.fromiter((int.from_bytes(sha1(packb(value)).digest()[:8], byteorder='big') for value in values), np.uint64)
         j = x & (self.m - 1)
@@ -180,32 +201,17 @@ class HyperLogLog(object):
         self.M = np.maximum.reduce(ml)
 
     def __eq__(self, other):
-        if self.m != other.m:
-            raise ValueError('Counters precisions should be equal')
+        if not isinstance(other, HyperLogLog):
+            return NotImplemented
 
-        return np.array_equal(self.M, other.M)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        return self.m == other.m and np.array_equal(self.M, other.M)
 
     def __len__(self):
         return round(self.card())
-
-    def _Ep(self):
-        E = self.alpha * (self.m ** 2) / np.power(2.0, -self.M, dtype=float).sum()
-        return (E - estimate_bias(E, self.p)) if E <= 5 * self.m else E
 
     def card(self):
         """
         Returns the estimate of the cardinality
         """
-
-        #count number of registers equal to 0
-        V = np.count_nonzero(self.M == 0)
-
-        if V > 0:
-            H = self.m * math.log(self.m / V)
-            return H if H <= get_treshold(self.p) else self._Ep()
-        else:
-            return self._Ep()
+        return get_estimate(self.M, self.m, self.p, self.alpha)
 

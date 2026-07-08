@@ -8,7 +8,7 @@ import numpy as np
 
 from hashlib import sha1
 from msgpack import packb
-from .hll import get_treshold, estimate_bias, get_alpha, get_rho
+from .hll import get_alpha, get_rho, get_estimate
 
 
 class SlidingHyperLogLog(object):
@@ -27,14 +27,17 @@ class SlidingHyperLogLog(object):
 
         self.window = window
 
+        if not (window > 0):
+            raise ValueError('window must be > 0')
+
         if lpfm is not None:
             m = len(lpfm)
-            p = round(math.log(m, 2))
 
-            if (1 << p) != m:
+            if m == 0 or (m & (m - 1)) != 0:
                 raise ValueError('List length is not power of 2')
 
-            self.LPFM = lpfm
+            p = m.bit_length() - 1
+            self.LPFM = list(lpfm)
 
         else:
             if not (0 < error_rate < 1):
@@ -57,6 +60,10 @@ class SlidingHyperLogLog(object):
     def __setstate__(self, d):
         for key in d:
             setattr(self, key, d[key])
+
+        # normalize LPFM from pickles created by older versions, which used
+        # None for empty registers and ascending timestamp order
+        self.LPFM = [tuple(sorted(reg, reverse=True)) if reg else tuple() for reg in self.LPFM]
 
     @classmethod
     def from_list(cls, lpfm, window):
@@ -103,6 +110,9 @@ class SlidingHyperLogLog(object):
             if self.m != item.m:
                 raise ValueError('Counters precisions should be equal')
 
+            if self.window != item.window:
+                raise ValueError('Counters windows should be equal')
+
         for j, lpfms_j in enumerate(zip(self.LPFM, *list(item.LPFM for item in others))):
             Rmax = None
             tmp = []
@@ -122,20 +132,13 @@ class SlidingHyperLogLog(object):
             self.LPFM[j] = tuple(tmp)
 
     def __eq__(self, other):
-        if self.m != other.m:
-            raise ValueError('Counters precisions should be equal')
+        if not isinstance(other, SlidingHyperLogLog):
+            return NotImplemented
 
-        return self.LPFM == other.LPFM
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+        return self.m == other.m and self.window == other.window and self.LPFM == other.LPFM
 
     def __len__(self):
-        raise NotImplemented
-
-    def _Ep(self, M):
-        E = self.alpha * (self.m ** 2) / np.power(2.0, -M, dtype=float).sum()
-        return (E - estimate_bias(E, self.p)) if E <= 5 * self.m else E
+        raise NotImplementedError('use card(timestamp) to estimate cardinality')
 
     def card(self, timestamp, window=None):
         """
@@ -150,14 +153,7 @@ class SlidingHyperLogLog(object):
         _t = timestamp - window
         M = np.fromiter((np.max(np.fromiter((R for ts, R in lpfm if ts >= _t), int), initial=0) if lpfm else 0 for lpfm in self.LPFM), int)
 
-        #count number or registers equal to 0
-        V = np.count_nonzero(M == 0)
-
-        if V > 0:
-            H = self.m * math.log(self.m / V)
-            return H if H <= get_treshold(self.p) else self._Ep(M)
-        else:
-            return self._Ep(M)
+        return get_estimate(M, self.m, self.p, self.alpha)
 
     def card_wlist(self, timestamp, window_list):
         """
@@ -188,13 +184,5 @@ class SlidingHyperLogLog(object):
 
         res = []
         for M in M_list:
-            #count number of registers equal to 0
-            V = M.count(0)
-            M = np.array(M, int)
-
-            if V > 0:
-                H = self.m * math.log(self.m / V)
-                res.append(H if H <= get_treshold(self.p) else self._Ep(M))
-            else:
-                res.append(self._Ep(M))
+            res.append(get_estimate(np.array(M, int), self.m, self.p, self.alpha))
         return res
