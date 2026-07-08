@@ -2,12 +2,12 @@ Python implementation of the Hyper LogLog and Sliding Hyper LogLog cardinality c
 --------------------------------------------------------------------------------------------------
 
 Installation:
-============
+=============
 
 Use ``pip install hyperloglog`` to install from PyPI.
 
 Usage:
-=====
+======
 
 .. code-block:: python
 
