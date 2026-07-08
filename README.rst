@@ -1,5 +1,5 @@
 Python implementation of the Hyper LogLog and Sliding Hyper LogLog cardinality counter algorithms. 
---------------------------------------------------------------------------------------------------
+==================================================================================================
 
 Installation:
 =============
